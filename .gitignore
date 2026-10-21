@@ -1,0 +1,25 @@
+# 运行时数据（含浏览器登录态，切勿提交）
+data/
+!data/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# 本机解释器路径（个人环境，不入库）
+python_path.txt
+
+# 下载产物
+*.pdf
+_tmp_downloads/
+_tmpout/
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/

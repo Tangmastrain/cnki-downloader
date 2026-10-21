@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CNKI 批量下载器</title>
+<style>
+  * { box-sizing: border-box; }
+  :root{
+    --bg:#f5f7fa; --panel:#ffffff; --line:#e3e8ef; --text:#1f2937; --sub:#6b7280;
+    --accent:#2563eb; --accent-soft:#eff4ff; --ok:#0f9d58; --warn:#d97706; --err:#dc2626;
+    --radius:12px;
+  }
+  html,body{height:100%;margin:0;}
+  body{
+    font-family:-apple-system,"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+    background:var(--bg); color:var(--text); font-size:13.5px; overflow:hidden;
+  }
+  .app{display:flex;flex-direction:column;height:100vh;}
+
+  header{
+    display:flex;align-items:center;gap:14px;padding:12px 18px;
+    background:var(--panel);border-bottom:1px solid var(--line);flex:0 0 auto;
+  }
+  .logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#2563eb,#4f8cff);
+    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;}
+  h1{font-size:15px;margin:0;font-weight:650;letter-spacing:.2px;}
+  .sub{font-size:12px;color:var(--sub);margin-left:2px;}
+  .spacer{flex:1;}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;
+    background:#f1f5f9;color:var(--sub);font-size:12px;border:1px solid var(--line);}
+  .dot{width:7px;height:7px;border-radius:50%;background:#94a3b8;}
+  .dot.on{background:var(--ok);box-shadow:0 0 0 3px rgba(15,157,88,.15);}
+  .dot.run{background:var(--accent);animation:blink 1.2s infinite;}
+  .dot.warn{background:var(--warn);}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+  main{flex:1;display:grid;grid-template-columns:400px 1fr;gap:0;min-height:0;}
+  .col{display:flex;flex-direction:column;min-height:0;}
+  .col.left{border-right:1px solid var(--line);background:var(--panel);}
+  .col.right{background:var(--bg);}
+  .sec{padding:14px 16px;border-bottom:1px solid var(--line);}
+  .sec:last-child{border-bottom:none;}
+  .label{font-size:12px;font-weight:600;color:var(--sub);margin-bottom:8px;display:flex;
+    align-items:center;justify-content:space-between;}
+  textarea{
+    width:100%;height:210px;resize:none;border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;font-family:inherit;font-size:12.5px;line-height:1.6;color:var(--text);
+    background:#fbfcfe;outline:none;transition:.15s;
+  }
+  textarea:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.08);}
+  .hint{font-size:11.5px;color:var(--sub);line-height:1.6;margin-top:7px;}
+  .hint code{background:#eef2f7;padding:1px 5px;border-radius:4px;font-size:11px;}
+  .steps{margin:0;padding-left:18px;color:var(--sub);font-size:12px;line-height:1.85;}
+  .steps li{margin-bottom:3px;}
+  .steps li::marker{color:var(--accent);font-weight:600;}
+
+  .btn{
+    border:1px solid var(--line);background:#fff;color:var(--text);padding:7px 13px;
+    border-radius:8px;font-size:12.5px;cursor:pointer;font-family:inherit;transition:.15s;
+    display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+  }
+  .btn:hover{border-color:#c7d2e0;background:#fafbfd;}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+  .btn.primary:hover{background:#1d4fd8;}
+  .btn.danger{color:var(--err);border-color:#f3c6c6;background:#fef6f6;}
+  .btn.ghost{background:transparent;border-color:transparent;color:var(--accent);padding:4px 6px;}
+  .btn.sm{padding:5px 10px;font-size:12px;}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .row.mt{margin-top:10px;}
+
+  input[type=text],select{
+    border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:12.5px;
+    font-family:inherit;color:var(--text);background:#fbfcfe;outline:none;
+  }
+  input[type=text]:focus,select:focus{border-color:var(--accent);background:#fff;}
+  .field{display:flex;flex-direction:column;gap:5px;flex:1;min-width:0;}
+  .field label{font-size:11.5px;color:var(--sub);}
+  .path{display:flex;gap:6px;}
+  .path input{flex:1;min-width:0;}
+
+  .toolbar{
+    display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--panel);
+    border-bottom:1px solid var(--line);flex:0 0 auto;
+  }
+  .progress{flex:1;height:6px;background:#e8edf4;border-radius:4px;overflow:hidden;min-width:80px;}
+  .progress > i{display:block;height:100%;width:0;background:linear-gradient(90deg,#2563eb,#5b93ff);
+    border-radius:4px;transition:width .3s;}
+  .count{font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums;}
+
+  .list{flex:1;overflow:auto;padding:8px 12px 16px;}
+  .item{
+    display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--panel);
+    border:1px solid var(--line);border-radius:10px;margin-bottom:7px;
+  }
+  .item .idx{width:26px;flex:0 0 26px;height:22px;border-radius:6px;background:#f1f5f9;color:var(--sub);
+    font-size:11px;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums;}
+  .item .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;}
+  .item .m{font-size:11.5px;color:var(--sub);flex:0 0 auto;max-width:180px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;}
+  .tag{font-size:11px;padding:3px 9px;border-radius:20px;flex:0 0 auto;font-weight:500;}
+  .tag.pending{background:#f1f5f9;color:#64748b;}
+  .tag.running{background:var(--accent-soft);color:var(--accent);}
+  .tag.done{background:#e8f7ee;color:var(--ok);}
+  .tag.fail{background:#fdecec;color:var(--err);}
+  .tag.manual{background:#fef3e2;color:var(--warn);}
+
+  .console{
+    flex:0 0 178px;border-top:1px solid var(--line);background:#0f172a;color:#cbd5e1;
+    font-family:ui-monospace,Consolas,"Cascadia Mono",monospace;font-size:11.5px;
+    overflow:auto;padding:10px 14px;line-height:1.65;
+  }
+  .console .l{white-space:pre-wrap;word-break:break-all;}
+  .console .lv-ok{color:#4ade80;} .console .lv-warn{color:#fbbf24;} .console .lv-err{color:#f87171;}
+  .console .ts{color:#64748b;margin-right:7px;}
+
+  .banner{
+    display:none;align-items:center;gap:10px;padding:10px 16px;background:#fff8e6;
+    border-bottom:1px solid #f6e2b3;color:#8a5a00;font-size:12.5px;
+  }
+  .banner.show{display:flex;}
+  .empty{color:var(--sub);font-size:12.5px;text-align:center;padding:40px 10px;}
+  ::-webkit-scrollbar{width:10px;height:10px;}
+  ::-webkit-scrollbar-thumb{background:#cfd8e3;border-radius:6px;border:3px solid transparent;background-clip:content-box;}
+  ::-webkit-scrollbar-thumb:hover{background:#aebccd;background-clip:content-box;}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">知</div>
+    <div>
+      <h1>CNKI 批量下载器</h1>
+      <div class="sub">本地运行 · 复用你的登录态 · 遇验证即暂停等你处理</div>
+    </div>
+    <div class="spacer"></div>
+    <span class="pill" id="pillBrowser"><span class="dot" id="dotBrowser"></span><span id="txtBrowser">浏览器未启动</span></span>
+    <span class="pill" id="pillState"><span class="dot" id="dotState"></span><span id="txtState">空闲</span></span>
+    <button class="btn sm" id="btnLogin">打开知网登录</button>
+    <button class="btn sm" id="btnQuit" title="关闭服务与浏览器">退出</button>
+  </header>
+
+  <div class="banner" id="banner">⚠ <span id="bannerText"></span></div>
+
+  <main>
+    <div class="col left">
+      <div class="sec">
+        <div class="label">
+          <span>文献清单</span>
+          <button class="btn ghost" id="btnImport">从文件导入</button>
+        </div>
+        <textarea id="input" placeholder="每行一条，支持两种写法：&#10;1. 直接粘贴知网详情页链接&#10;   https://kns.cnki.net/kcms2/article/abstract?v=...&#10;2. 只写标题（自动按「篇名」检索后下载第一条匹配结果）&#10;   基于无人机多光谱影像的小麦倒伏识别方法&#10;3. 标题 + 链接（推荐，最稳）&#10;   小麦倒伏识别 | https://kns.cnki.net/..."></textarea>
+        <div class="hint">以 <code>#</code> 开头的行会被忽略；行首序号会自动去除。</div>
+      </div>
+
+      <div class="sec">
+        <div class="label"><span>输出与策略</span></div>
+        <div class="field" style="margin-bottom:10px">
+          <label>保存目录</label>
+          <div class="path">
+            <input type="text" id="outdir" placeholder="选择目录">
+            <button class="btn sm" id="btnPickDir">浏览</button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>检索字段（仅标题模式）</label>
+            <select id="order">
+              <option>篇名</option><option>主题</option><option>关键词</option><option>作者</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>每篇间隔（秒）</label>
+            <input type="text" id="delay" value="3">
+          </div>
+        </div>
+      </div>
+
+      <div class="sec" style="flex:1">
+        <div class="label"><span>使用步骤</span></div>
+        <ol class="steps">
+          <li>点右上「打开知网登录」，在浏览器窗口用机构账号登录，并完成一次安全验证。</li>
+          <li>粘贴文献清单（标题 / 详情页链接 / 检索页链接均可），确认保存目录。</li>
+          <li>点「开始下载」。中途若再遇到验证或需要手动点下载，会自动暂停并提示你。</li>
+        </ol>
+        <div class="hint" style="margin-top:10px">登录态保存在本机 <code>data/browser-profile</code>，下次启动无需重复登录。</div>
+      </div>
+
+      <div class="sec">
+        <div class="row">
+          <button class="btn primary" id="btnStart" style="flex:1;justify-content:center">开始下载</button>
+          <button class="btn" id="btnPause" disabled>暂停</button>
+          <button class="btn" id="btnSkip" disabled>跳过当前</button>
+        </div>
+        <div class="row mt">
+          <button class="btn sm" id="btnParse">仅解析预览</button>
+          <button class="btn sm" id="btnOpenDir">打开输出目录</button>
+          <button class="btn sm danger" id="btnStop" disabled>停止</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="col right">
+      <div class="toolbar">
+        <span class="count" id="count">0 / 0</span>
+        <div class="progress"><i id="bar"></i></div>
+        <span class="count" id="pct">0%</span>
+      </div>
+      <div class="list" id="list">
+        <div class="empty">左侧粘贴清单后点「仅解析预览」或直接「开始下载」</div>
+      </div>
+      <div class="console" id="console"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let items = [];
+let running = false;
+
+function statusText(s){
+  return {pending:'等待',running:'进行中',done:'完成',fail:'失败',manual:'需手动'}[s] || s;
+}
+
+async function api(path, body){
+  const opt = body ? {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)} : {};
+  const r = await fetch(path, opt);
+  return r.json();
+}
+
+function renderList(){
+  const box = $('#list');
+  if(!items.length){
+    box.innerHTML = '<div class="empty">暂无条目</div>';
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  items.forEach((it,i)=>{
+    const d = document.createElement('div');
+    d.className='item';
+    const size = it.size ? (it.size/1024/1024).toFixed(1)+' MB' : '';
+    d.innerHTML = `<div class="idx">${it.seq||i+1}</div>
+      <div class="t" title="${escapeHtml(it.title||it.url||'')}">${escapeHtml(it.title||it.url||'')}</div>
+      <div class="m">${escapeHtml(it.msg||size)}</div>
+      <div class="tag ${it.status}">${statusText(it.status)}</div>`;
+    frag.appendChild(d);
+  });
+  box.innerHTML='';
+  box.appendChild(frag);
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderLog(log){
+  const c = $('#console');
+  const atBottom = c.scrollHeight - c.scrollTop - c.clientHeight < 40;
+  c.innerHTML = log.map(l=>`<div class="l lv-${l.lv}"><span class="ts">${l.t}</span>${escapeHtml(l.m)}</div>`).join('');
+  if(atBottom) c.scrollTop = c.scrollHeight;
+}
+
+function updateProgress(){
+  const total = items.length;
+  const done = items.filter(i=>i.status==='done').length;
+  const fin = items.filter(i=>i.status==='done'||i.status==='fail').length;
+  $('#count').textContent = `${done} / ${total}`;
+  const pct = total ? Math.round(fin/total*100) : 0;
+  $('#bar').style.width = pct+'%';
+  $('#pct').textContent = pct+'%';
+}
+
+async function poll(){
+  try{
+    const s = await api('/api/state');
+    if(s.items && s.items.length){
+      items = s.items;
+      renderList();
+      updateProgress();
+    }
+    renderLog(s.log||[]);
+    running = !!s.running;
+
+    $('#dotBrowser').className = 'dot ' + (s.browser_open?'on':'');
+    $('#txtBrowser').textContent = s.browser_open ? '浏览器已启动' : '浏览器未启动';
+
+    const runningNow = s.running && s.phase==='running';
+    $('#dotState').className = 'dot ' + (s.phase==='manual'?'warn':(s.running?'run':''));
+    $('#txtState').textContent = s.phase==='manual' ? '等待你操作' : (s.running ? (s.paused?'已暂停':'下载中') : '空闲');
+
+    const banner = $('#banner');
+    if(s.phase==='manual' && s.message){
+      banner.classList.add('show'); $('#bannerText').textContent = s.message + '（处理后会自动继续）';
+    } else { banner.classList.remove('show'); }
+
+    $('#btnStart').disabled = running;
+    $('#btnStop').disabled = !running;
+    $('#btnPause').disabled = !running;
+    $('#btnSkip').disabled = !(s.phase==='manual');
+    $('#btnPause').textContent = s.paused ? '继续' : '暂停';
+    if(s.outdir && !$('#outdir').value) $('#outdir').value = s.outdir;
+  }catch(e){}
+}
+
+async function start(){
+  const text = $('#input').value.trim();
+  if(!text){ alert('请先粘贴文献清单'); return; }
+  const r = await api('/api/parse', {text});
+  if(!r.items.length){ alert('没有解析出有效条目'); return; }
+  items = r.items.map((it,i)=>({...it,status:'pending'}));
+  renderList(); updateProgress();
+  const res = await api('/api/start', {
+    items, outdir: $('#outdir').value.trim(), order: $('#order').value, delay: parseFloat($('#delay').value)||3
+  });
+  if(res.error){ alert(res.error); }
+}
+
+$('#btnStart').onclick = start;
+
+$('#btnParse').onclick = async ()=>{
+  const text = $('#input').value.trim();
+  if(!text) return;
+  const r = await api('/api/parse',{text});
+  items = r.items; renderList(); updateProgress();
+};
+
+$('#btnImport').onclick = async ()=>{
+  const r = await api('/api/import',{});
+  if(r.error){ if(r.error!=='未选择文件') alert(r.error); return; }
+  if(!r.items.length){ alert('文件里没有找到知网链接'); return; }
+  $('#input').value = r.items.map(i=> i.url ? `${i.title} | ${i.url}` : i.title).join('\n');
+  items = r.items; renderList(); updateProgress();
+};
+
+$('#btnPickDir').onclick = async ()=>{
+  const r = await api('/api/pick/folder',{});
+  if(r.path) $('#outdir').value = r.path;
+};
+
+$('#btnOpenDir').onclick = ()=> api('/api/open-folder',{path:$('#outdir').value.trim()});
+
+$('#btnLogin').onclick = async ()=>{
+  const r = await api('/api/browser/open',{});
+  if(r.error) alert(r.error);
+};
+
+$('#btnStop').onclick = async ()=>{ if(confirm('确定停止当前任务？')) await api('/api/stop',{}); };
+
+$('#btnPause').onclick = async ()=>{
+  const txt = $('#btnPause').textContent;
+  await api(txt==='暂停' ? '/api/pause' : '/api/resume', {});
+};
+
+$('#btnSkip').onclick = async ()=>{ await api('/api/skip',{}); };
+
+$('#btnQuit').onclick = async ()=>{
+  if(!confirm('退出会关闭下载服务与浏览器窗口，确定？')) return;
+  try{ await api('/api/quit',{}); }catch(e){}
+  setTimeout(()=>{ window.open('','_self'); window.close(); }, 500);
+};
+
+poll();
+setInterval(poll, 1000);
+</script>
+</body>
+</html>

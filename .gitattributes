@@ -1,0 +1,4 @@
+# .bat 为 GBK 编码且必须是 CRLF，禁止 git 做换行转换
+*.bat -text
+*.png binary
+*.jpg binary
